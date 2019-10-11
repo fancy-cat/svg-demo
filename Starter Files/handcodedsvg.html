@@ -15,47 +15,287 @@
     margin: 0;
     text-align: center;
   }
-  .grid {
-    width: 750px;
-    height: 500px;
-    margin: 0 auto;
-    padding-top: 100px;
-    padding-left: 100px;
-    background-image: url('grid.png');
-    position: relative;
-  }
-  .grid::before {
-    content: "";
-    border-left: 1px solid #7c7cea;
-    position: absolute;
-    top: 0;
-    left: 100px;
-    width: 750px;
-    height: 600px;
-  }
-  .grid::after {
-    content: "";
-    border-top: 1px solid #7c7cea;
-    position: absolute;
-    top: 100px;
-    left: 0;
-    width: 850px;
-    height: 500px;
-  }
   svg {
     stroke: #000;
-    stroke-width: 5;
+    stroke-width: 1;
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
   }
+  #draw {
+    display: inline-block;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
   </style>
 </head>
 <body>
+  <div>
+    <button id="draw">绘制</button>
+  </div>
+  <svg id="svgWrap" width="750" height="500" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <g id="line4">
+        <line x1="3" y1="3" x2="48" y2="3"/>
+        <line x1="3" y1="19" x2="55" y2="19"/>
+        <line x1="3" y1="35" x2="46" y2="35"/>
+        <line x1="3" y1="51" x2="60" y2="51"/>
+      </g>
 
-<div class="grid">
+      <g id="g2">
+        <polyline points="3 3, 30 30, 3 60 " style=""/>
+      </g>
 
-</div>
+      <g id="g3">
+        <rect x="3" y="3" width="80" height="60" style=""/>
+        <line x1="30" y1="3" x2="30" y2="20"/>
+        <line x1="3" y1="20" x2="80" y2="20"/>
+      </g>
 
+      <g id="g4">
+        <ellipse cx="37" cy="44" rx="33" ry="41"/>
+        <line x1="35" y1="20" x2="35" y2="50"/>
+        <ellipse style="fill:black;" cx="35" cy="65" rx="4" ry="4"></ellipse>
+      </g>
+
+      <g id="g5">
+        <ellipse cx="37" cy="44" rx="33" ry="41"/>
+        <polyline points="30 20, 50 40, 30 60,30 20" style=""/>
+      </g>
+
+      <!-- polyline不闭合线条 polygon闭合图形 -->
+      
+      <symbol id="g6" viewBox="0 0 0 60">
+        <ellipse cx="37" cy="44" rx="33" ry="41"/>
+        <polygon points="30 20, 50 40, 30 60" style=""/>
+      </symbol>
+
+      <g id="g7">
+        <path d="
+        M28 3
+        L48 30
+        L40 30
+        L40 50
+        L12 50
+        L12 30
+        L3 30
+        Z"
+        />
+      </g>
+
+      <g id="g8">
+        <circle cx="100" cy="100" r="30" style="fill: pink"/>
+      </g>
+      
+      <g id="dian">
+        <ellipse cx="0" cy="0" rx="8" ry="8" style="fill: #000;"/>
+      </g>
+    </defs>
+
+    <!-- <use href="#line4" x="10" y="10" />
+    <use href="#g2" x="110" y="10" />
+    <use href="#g3" x="210" y="10" />
+    <use href="#g4" x="310" y="10" />
+    <use href="#g5" x="10" y="110" />
+    <use href="#g6" x="110" y="110" />
+    <use href="#g7" x="210" y="110" />
+    <use href="#g8" x="310" y="110" /> -->
+
+    <!-- <ellipse cx="100" cy="100" rx="8" ry="8" style="fill: #000;" onmouseover="alert(2);"/> -->
+    <!-- <use href="#dian" x="100" y="100" class="dian" /> -->
+    <g class="dian" style="display: none"></g>
+    <g class="line" style="display: none"></g>
+    <g class="tempLine" style="display: none"></g>
+    <g class="pol"  style="display: none"></g>
+  </svg>
 </body>
+<script>
+  // 一些需要的全局变量
+  let mapStr = {
+    isAdd: false,
+    points: [],
+    currentPoints: '', // 当前位置
+    dragTarget: 'polygon',
+    isDrag: false,
+    downTime: '',
+    upTime: '',
+    startMousePoint: {
+      x: '',
+      y: ''
+    }, // 移动前鼠标的位置
+  }
+
+  let drawBtn = document.querySelector('#draw');
+  let svgWrap = document.querySelector('#svgWrap');
+  let dian = document.querySelector('.dian');
+  let line = document.querySelector('.line');
+  let tempLine = document.querySelector('.tempLine');
+  let pol = document.querySelector('.pol');
+  
+  // 点击按钮
+  drawBtn.addEventListener('click', () => {
+    mapStr = {
+      isAdd: true,
+      points: [],
+      currentPoints: '',
+      dragTarget: 'polygon',
+      isDrag: false,
+      downTime: '',
+      upTime: '',
+      startMousePoint: {
+        x: '',
+        y: ''
+      },
+    };
+    removeLine(dian, line);
+  })
+
+  // 创建点
+  function drawEllipse(parent, x, y) {
+    parent.setAttribute('style','display: block');
+    // 创建svg标签，不能用createElement
+    var el = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    // <ellipse cx="0" cy="0" rx="8" ry="8" style="fill: #000;"/>
+    el.setAttribute('cx', x);
+    el.setAttribute('cy', y);
+    el.setAttribute('rx', 5);
+    el.setAttribute('ry', 5);
+    el.setAttribute('e-id', mapStr.points.length == 1 ? '1' : Math.random());
+    el.setAttribute('style', mapStr.points.length == 1 ? 'fill: pink' : 'fill: #000;');
+    parent.appendChild(el);
+  }
+  // 创建线
+  function drawLine(opt = {}) {
+    let {parent, x1, y1, x2, y2} = opt;
+    parent.setAttribute('style','display: block');
+    var el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    el.setAttribute('x1', x1);
+    el.setAttribute('y1', y1);
+    el.setAttribute('x2', x2);
+    el.setAttribute('y2', y2);
+    parent.appendChild(el);
+  }
+  // 移除点和线
+  function removeLine(opt) {
+    let arg = Array.from(arguments);
+    arg.forEach(e => {
+      e.innerHTML = '';
+    });
+  }
+  // 创建闭合图形
+  function closePolygon(parent, points) {
+    let p = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    p.setAttribute('points', points);
+    p.setAttribute('style', 'fill: #ccc; stroke-width: 0');
+    parent.setAttribute('style', 'display: block');
+    parent.appendChild(p);
+  }
+  // 绘制
+  function draw(e) {
+    // 画图的逻辑
+    if(!mapStr.isAdd) return
+    // 点击非svg标签不做操作，如果是初始点判断是否闭合
+    if(e.target.getAttribute('e-id')) {
+      if(mapStr.points.length > 2 && e.target.getAttribute('e-id') === '1') {
+        mapStr.currentPoints = mapStr.points.join(',').replace(/,/g, ' ');
+        // 闭合
+        closePolygon(pol, mapStr.currentPoints);
+        removeLine(dian, line, tempLine);
+        mapStr.isAdd = false;
+      }
+      return;
+    } ;
+    // 收集坐标点
+    let x = e.offsetX;
+    let y = e.offsetY;
+    mapStr.points.push(`${x},${y}`);
+    // 画点
+    drawEllipse(dian, x, y);
+    // 画线
+    let len = mapStr.points.length;
+    if(len >= 2) {
+      let [x1, y1] = mapStr.points[len-2].split(',');
+      let [x2, y2] = mapStr.points[len-1].split(',');
+      drawLine({parent: line, x1, y1, x2, y2});
+    }
+  }
+  // 绘制临时线路径
+  function drawTempLine(e) {
+    if(!mapStr.isAdd) return;
+    // 鼠标的下面不能有线，不然就点不到原点了
+    let x = e.offsetX-1;
+    let y = e.offsetY-1;
+    // 临时线标记线
+    let len = mapStr.points.length;
+    if(len) {
+      let [x1, y1] = mapStr.points[len-1].split(',');
+      let [x2, y2] = [x, y];
+      removeLine(tempLine);
+      drawLine({parent: tempLine, x1, y1, x2, y2});
+    }
+  }
+  // 拖拽图形
+  function drag(e) {
+    if(mapStr.isDrag) {
+      // 鼠标初始位置
+      let sX = mapStr.startMousePoint.x;
+      let sY = mapStr.startMousePoint.y;
+      // 鼠标当前位置
+      let x = e.offsetX;
+      let y = e.offsetY;
+      // 算偏移量移动图形
+      let translateX = x-sX;
+      let translateY = y-sY;
+      console.log(translateX, translateY)
+      console.log(mapStr.currentPoints);
+      let newPointsArr = mapStr.currentPoints.replace(/\s+/g, ',').split(',').map((v, index) => {
+        if(index % 2 === 0) {
+          // 改x
+          return Number(v) + translateX
+        } else {
+          // 改y
+          return Number(v) + translateY
+        }
+      })
+      mapStr.currentPoints = newPointsArr.join(' ');
+      // console.log(mapStr.currentPoints)
+      console.log(mapStr.currentPoints);
+      e.target.setAttribute('points', newPointsArr.join(' '));
+    }
+  }
+  // 点击绘制
+  svgWrap.addEventListener('mousedown', (e) => {  
+    draw(e);
+    if(e.target.tagName === mapStr.dragTarget) {
+    console.log(mapStr.startMousePoint);
+      mapStr.isDrag = true;
+      mapStr.downTime = Date.now();
+      // 鼠标点击图形的初始位置
+      mapStr.startMousePoint.x = e.offsetX;
+      mapStr.startMousePoint.y = e.offsetY;
+    }
+  })
+
+  // 移动
+  svgWrap.addEventListener('mousemove', (e) => {
+    drawTempLine(e);
+    if(e.target.tagName === mapStr.dragTarget && mapStr.isDrag) {
+      mapStr.upTime = Date.now();
+      if (mapStr.upTime - mapStr.downTime <= 100) {
+        mapStr.isDrag = false;
+      } else {
+        drag(e);
+      }
+    }
+  })
+
+  svgWrap.addEventListener('mouseup', (e) => {
+    mapStr.isDrag = false;
+    mapStr.startMousePoint.x = '';
+    mapStr.startMousePoint.y = '';
+  })
+
+</script>
 </html>
